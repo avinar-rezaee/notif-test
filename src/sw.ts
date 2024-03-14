@@ -23,6 +23,13 @@ self.addEventListener('push', event => {
     }
 })
 
+self.addEventListener('pushsubscriptionchange', () => {
+    self.registration.showNotification('your push subscription has changed', {
+        body: "Notified for TEST!",
+        icon: "/notification.png"
+    });
+})
+
 // self.__WB_MANIFEST is default injection point
 precacheAndRoute(self.__WB_MANIFEST)
 

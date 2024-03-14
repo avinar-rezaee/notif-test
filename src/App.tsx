@@ -23,9 +23,51 @@ function urlBase64ToUint8Array(base64String: string) {
 function App() {
   // const [count, setCount] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
+  const [hasNotificationPermission, setHasNotificationPermission] =
+    useState<boolean>(true);
   const socket = io("https://u.darbast.app/test-notif", {
     transports: ["websocket"],
   });
+
+  function requestPermission() {
+    window.Notification.requestPermission().then((perm) => {
+      console.log("Notification Permission Requested...");
+      setLogs((perv) => [...perv, "Notification Permission Requested..."]);
+      if (perm == "granted") {
+        setHasNotificationPermission(true);
+        console.log("Notification Permission Granted...");
+        setLogs((perv) => [...perv, "Notification Permission Granted..."]);
+        console.log("Registering service worker...");
+        setLogs((perv) => [...perv, "Registering service worker..."]);
+        navigator.serviceWorker.ready.then((serviceWorkerRegistration) => {
+          console.log("Service Worker Registered...");
+          setLogs((perv) => [...perv, "Service Worker Registered..."]);
+          const options = {
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(PublicVapIdKey),
+          };
+          console.log("Registering Push...");
+          setLogs((perv) => [...perv, "Registering Push..."]);
+          serviceWorkerRegistration.pushManager.subscribe(options).then(
+            (pushSubscription) => {
+              console.log(pushSubscription);
+              console.log("Push Registered...");
+              setLogs((perv) => [...perv, "Push Registered..."]);
+              console.log("Sending Push...");
+              setLogs((perv) => [...perv, "Sending Push..."]);
+              socket.emit("subscribe_for_push_notifications", pushSubscription);
+              console.log("Push Sent...");
+              setLogs((perv) => [...perv, "Push Sent..."]);
+            },
+            (error) => {
+              console.error(error);
+              setLogs((perv) => [...perv, error]);
+            }
+          );
+        });
+      }
+    });
+  }
 
   useEffect(() => {
     socket.on("connect", () => {
@@ -48,43 +90,27 @@ function App() {
       console.log(socket.connected); // false
     });
 
-    window.Notification.requestPermission().then((perm) => {
-      console.log("Notification Permission Requested...");
-      setLogs((perv) => [...perv, "Notification Permission Requested..."]);
-      if (perm == "granted") {
-        console.log("Notification Permission Granted...");
-        setLogs((perv) => [...perv, "Notification Permission Granted..."]);
-        console.log("Registering service worker...");
-        setLogs((perv) => [...perv, "Registering service worker..."]);
-        navigator.serviceWorker.ready.then((serviceWorkerRegistration) => {
-          console.log("Service Worker Registered...");
-          setLogs((perv) => [...perv, "Service Worker Registered..."]);
-          const options = {
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(PublicVapIdKey),
-          };
-          console.log("Registering Push...");
-          setLogs((perv) => [...perv, "Registering Push..."]);
-          serviceWorkerRegistration.pushManager.subscribe(options).then(
-            (pushSubscription) => {
-              console.log(pushSubscription.endpoint);
-              console.log("Push Registered...");
-              setLogs((perv) => [...perv, "Push Registered..."]);
-              console.log("Sending Push...");
-              setLogs((perv) => [...perv, "Sending Push..."]);
-              socket.emit("subscribe_for_push_notifications", pushSubscription);
-              console.log("Push Sent...");
-              setLogs((perv) => [...perv, "Push Sent..."]);
-            },
-            (error) => {
-              console.error(error);
-              setLogs((perv) => [...perv, error]);
-            }
-          );
-        });
+    navigator.serviceWorker.ready.then(async (serviceWorkerRegistration) => {
+      const subscription =
+        await serviceWorkerRegistration.pushManager.getSubscription();
+      console.log({ subscription });
+      if (subscription) {
+        setHasNotificationPermission(true);
+        socket.emit("subscribe_for_push_notifications", subscription);
+      } else {
+        setHasNotificationPermission(false);
       }
     });
+    // requestPermission();
   }, []);
+
+  // const [deferredPrompt, setDeferredPrompt] = useState<Event>();
+  // window.addEventListener("beforeinstallprompt", (e) => {
+  //   e.preventDefault(); // Prevent the mini-infobar from appearing on mobile
+  //   setDeferredPrompt(e); // Save the event so it can be triggered later.
+  //   console.log("beforeinstallprompt");
+  //   // Update UI to notify the user they can add to the home screen
+  // });
 
   return (
     <>
@@ -98,18 +124,31 @@ function App() {
       </div>
       <h1>Vite + React</h1>
       <div className="card">
-        <button
-          onClick={() => {
-            socket.emit("test_notification", {});
-          }}
-        >
-          receive notification
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+        {!hasNotificationPermission && (
+          <button
+            onClick={() => {
+              requestPermission();
+            }}
+          >
+            request permission
+          </button>
+        )}
+        <br />
+        <h1></h1>
+        <br />
+        {hasNotificationPermission && (
+          <button
+            onClick={() => {
+              console.log("Notification Requested...");
+              setLogs((perv) => [...perv, "Notification Requested..."]);
+              socket.emit("test_notification", {});
+            }}
+          >
+            receive notification
+          </button>
+        )}
       </div>
-      {logs.map((logItem) => (
+      {logs.reverse().map((logItem) => (
         <>
           <h5>{logItem}</h5>
           <br />
