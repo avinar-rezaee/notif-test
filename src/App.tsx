@@ -3,7 +3,7 @@ import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
 import { io } from "socket.io-client";
-
+import { v4 as uuidV4 } from "uuid";
 const PublicVapIdKey =
   "BPYVpcC9ihPlKnl5Jn4_vewLx6II7CjjoQeb3AbhaysVjwtHv3Pddf2cLb-wNx6ltVt8XPHASWKJP13zKn74Zao";
 function urlBase64ToUint8Array(base64String: string) {
@@ -22,9 +22,13 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 function App() {
   // const [count, setCount] = useState(0);
+  const [userId] = useState<string>(localStorage.getItem("userId") ?? uuidV4());
+  useEffect(() => {
+    localStorage.setItem("userId", userId);
+  }, [userId]);
   const [logs, setLogs] = useState<string[]>([]);
   const [hasNotificationPermission, setHasNotificationPermission] =
-    useState<boolean>(true);
+    useState<boolean>(false);
   const socket = io("https://u.darbast.app/test-notif", {
     transports: ["websocket"],
   });
@@ -55,7 +59,10 @@ function App() {
               setLogs((perv) => [...perv, "Push Registered..."]);
               console.log("Sending Push...");
               setLogs((perv) => [...perv, "Sending Push..."]);
-              socket.emit("subscribe_for_push_notifications", pushSubscription);
+              socket.emit("subscribe_for_push_notifications", {
+                subscription: pushSubscription,
+                userId,
+              });
               console.log("Push Sent...");
               setLogs((perv) => [...perv, "Push Sent..."]);
             },
@@ -123,6 +130,9 @@ function App() {
         </a>
       </div>
       <h1>Vite + React</h1>
+      <a href="https://github.com/avinar-rezaee/notif-test" target="_blank">
+        <h1>git repo</h1>
+      </a>
       <div className="card">
         {!hasNotificationPermission && (
           <button
@@ -141,7 +151,7 @@ function App() {
             onClick={() => {
               console.log("Notification Requested...");
               setLogs((perv) => [...perv, "Notification Requested..."]);
-              socket.emit("test_notification", {});
+              socket.emit("test_notification", { userId });
             }}
           >
             receive notification
