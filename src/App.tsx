@@ -28,6 +28,26 @@ function App() {
   });
 
   useEffect(() => {
+    socket.on("connect", () => {
+      setLogs((perv) => [...perv, "Socket Connected"]);
+      const engine = socket.io.engine;
+      console.log(engine.transport.name);
+
+      engine.on("close", (reason) => {
+        console.log({ reason });
+      });
+    });
+
+    socket.on("connect_error", (e) => {
+      setLogs((perv) => [...perv, "Socket Connect Error"]);
+      console.log(Object.getOwnPropertyDescriptors(e).message.value);
+    });
+
+    socket.on("disconnect", () => {
+      setLogs((perv) => [...perv, "Socket Disconnected"]);
+      console.log(socket.connected); // false
+    });
+
     window.Notification.requestPermission().then((perm) => {
       console.log("Notification Permission Requested...");
       setLogs((perv) => [...perv, "Notification Permission Requested..."]);
